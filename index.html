@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ServerGuard — Server Health Monitoring</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tailwind custom config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            slate:   { 950: '#0b1120' },
+            navy:    { DEFAULT: '#0f172a', light: '#1e293b', border: '#334155' },
+            healthy: { DEFAULT: '#22c55e', dim: '#166534', bg: '#052e16' },
+            warn:    { DEFAULT: '#f59e0b', dim: '#92400e', bg: '#1c1008' },
+            crit:    { DEFAULT: '#ef4444', dim: '#991b1b', bg: '#200a0a' },
+            accent:  { DEFAULT: '#3b82f6', dark: '#2563eb' },
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- Custom supplemental styles -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="min-h-screen bg-[#0b1120] text-slate-200 font-sans antialiased">
+
+  <!-- ================================================================
+       TOP NAVIGATION BAR
+  ================================================================ -->
+  <header class="bg-navy-light border-b border-navy-border px-4 md:px-8 py-3
+                 flex items-center justify-between gap-4 sticky top-0 z-30">
+    <!-- Brand -->
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
+        <i class="fa-solid fa-shield-halved text-white text-sm"></i>
+      </div>
+      <div>
+        <h1 class="text-base font-bold leading-tight text-white tracking-wide">ServerGuard</h1>
+        <p class="text-[10px] text-slate-400 leading-tight">Server Health Monitoring</p>
+      </div>
+    </div>
+
+    <!-- Live clock & global status indicator -->
+    <div class="flex items-center gap-4">
+      <div id="global-status-badge"
+           class="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold
+                  bg-healthy-bg text-healthy border border-healthy/30 transition-colors duration-300">
+        <span class="pulse-dot bg-healthy"></span>
+        <span id="global-status-text">All Systems Healthy</span>
+      </div>
+      <span id="live-clock" class="text-xs text-slate-400 tabular-nums" aria-live="polite"></span>
+      <!-- Add Server Button (top bar shortcut) -->
+      <button id="btn-add-server-nav"
+              class="flex items-center gap-1.5 bg-accent hover:bg-accent-dark text-white
+                     text-xs font-semibold px-3 py-1.5 rounded-lg transition duration-200
+                     active:scale-95"
+              aria-label="Add new server">
+        <i class="fa-solid fa-plus text-xs"></i>
+        <span class="hidden sm:inline">Add Server</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================================================================
+       MAIN LAYOUT
+  ================================================================ -->
+  <main class="px-4 md:px-8 py-6 max-w-screen-2xl mx-auto">
+
+    <!-- ── LIVE METRICS CARDS ── -->
+    <section aria-label="Live server metrics" class="mb-8">
+      <h2 class="text-xs font-semibold tracking-widest text-slate-500 uppercase mb-4">
+        Live Metrics — <span id="metrics-server-name" class="text-accent">Fleet Overview</span>
+      </h2>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+
+        <!-- CPU Usage -->
+        <div class="metric-card" id="card-cpu">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="metric-icon bg-blue-900/50 text-accent">
+                <i class="fa-solid fa-microchip text-sm"></i>
+              </div>
+              <span class="text-xs font-medium text-slate-400">CPU Usage</span>
+            </div>
+            <span id="badge-cpu" class="status-badge badge-healthy">OK</span>
+          </div>
+          <p id="val-cpu" class="text-3xl font-bold text-white tabular-nums">--<span class="text-base font-normal text-slate-400">%</span></p>
+          <div class="mt-2 progress-track">
+            <div id="bar-cpu" class="progress-bar bg-accent" style="width:0%"></div>
+          </div>
+        </div>
+
+        <!-- Memory Usage -->
+        <div class="metric-card" id="card-mem">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="metric-icon bg-purple-900/50 text-purple-400">
+                <i class="fa-solid fa-memory text-sm"></i>
+              </div>
+              <span class="text-xs font-medium text-slate-400">Memory Usage</span>
+            </div>
+            <span id="badge-mem" class="status-badge badge-healthy">OK</span>
+          </div>
+          <p id="val-mem" class="text-3xl font-bold text-white tabular-nums">--<span class="text-base font-normal text-slate-400">%</span></p>
+          <div class="mt-2 progress-track">
+            <div id="bar-mem" class="progress-bar bg-purple-500" style="width:0%"></div>
+          </div>
+        </div>
+
+        <!-- Disk Space -->
+        <div class="metric-card" id="card-disk">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="metric-icon bg-amber-900/50 text-amber-400">
+                <i class="fa-solid fa-hard-drive text-sm"></i>
+              </div>
+              <span class="text-xs font-medium text-slate-400">Disk Space</span>
+            </div>
+            <span id="badge-disk" class="status-badge badge-healthy">OK</span>
+          </div>
+          <p id="val-disk" class="text-3xl font-bold text-white tabular-nums">--<span class="text-base font-normal text-slate-400">%</span></p>
+          <div class="mt-2 progress-track">
+            <div id="bar-disk" class="progress-bar bg-amber-400" style="width:0%"></div>
+          </div>
+        </div>
+
+        <!-- Network Traffic -->
+        <div class="metric-card" id="card-net">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="metric-icon bg-teal-900/50 text-teal-400">
+                <i class="fa-solid fa-network-wired text-sm"></i>
+              </div>
+              <span class="text-xs font-medium text-slate-400">Network Traffic</span>
+            </div>
+            <span id="badge-net" class="status-badge badge-healthy">OK</span>
+          </div>
+          <p id="val-net" class="text-3xl font-bold text-white tabular-nums">--<span class="text-base font-normal text-slate-400">Mbps</span></p>
+          <div class="mt-2 progress-track">
+            <div id="bar-net" class="progress-bar bg-teal-400" style="width:0%"></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── ALERT PANEL ── -->
+    <section aria-label="Active alerts" id="alert-section" class="mb-8 hidden">
+      <h2 class="text-xs font-semibold tracking-widest text-slate-500 uppercase mb-3">
+        Active Alerts
+      </h2>
+      <div id="alert-list" class="flex flex-col gap-2"></div>
+    </section>
+
+    <!-- ── SERVER LIST SECTION ── -->
+    <section aria-label="Server management">
+
+      <!-- Toolbar: filter + add button -->
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h2 class="text-xs font-semibold tracking-widest text-slate-500 uppercase mb-1">
+            Server Fleet
+          </h2>
+        </div>
+
+        <div class="flex items-center gap-2 flex-wrap">
+          <!-- Status Filter Tabs -->
+          <div id="filter-bar" class="flex gap-1 bg-navy-light border border-navy-border
+                                      rounded-lg p-1" role="tablist" aria-label="Filter servers">
+            <button class="filter-btn active-filter" data-filter="all"         role="tab">All <span id="count-all"></span></button>
+            <button class="filter-btn"               data-filter="healthy"     role="tab">Healthy <span id="count-healthy"></span></button>
+            <button class="filter-btn"               data-filter="warning"     role="tab">Warning <span id="count-warning"></span></button>
+            <button class="filter-btn"               data-filter="critical"    role="tab">Critical <span id="count-critical"></span></button>
+            <button class="filter-btn"               data-filter="maintenance" role="tab">Maintenance <span id="count-maintenance"></span></button>
+          </div>
+
+          <!-- Add Server -->
+          <button id="btn-add-server"
+                  class="flex items-center gap-1.5 bg-accent hover:bg-accent-dark text-white
+                         text-xs font-semibold px-3 py-1.5 rounded-lg transition duration-200
+                         active:scale-95">
+            <i class="fa-solid fa-plus text-xs"></i> Add Server
+          </button>
+        </div>
+      </div>
+
+      <!-- Server Grid -->
+      <div id="server-grid"
+           class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+           aria-live="polite">
+        <!-- Server cards rendered by script.js -->
+      </div>
+
+      <!-- Empty state -->
+      <div id="empty-state" class="hidden text-center py-20 text-slate-500">
+        <i class="fa-solid fa-server text-4xl mb-4 block opacity-30"></i>
+        <p class="font-medium text-slate-400">No servers found</p>
+        <p class="text-xs mt-1">Add a server or change the active filter.</p>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- ================================================================
+       ADD / EDIT SERVER MODAL
+  ================================================================ -->
+  <div id="server-modal" class="modal-overlay hidden"
+       role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-card">
+      <div class="flex items-center justify-between mb-5">
+        <h2 id="modal-title" class="text-base font-semibold text-white">Add New Server</h2>
+        <button id="modal-close-btn" class="text-slate-500 hover:text-white transition"
+                aria-label="Close modal">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="server-form" novalidate class="flex flex-col gap-4">
+        <input type="hidden" id="modal-server-id" value="" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Server Name -->
+          <div>
+            <label class="form-label" for="input-name">Server Name *</label>
+            <input id="input-name" type="text" maxlength="40" autocomplete="off"
+                   placeholder="e.g. prod-web-01"
+                   class="form-input" />
+          </div>
+          <!-- IP Address -->
+          <div>
+            <label class="form-label" for="input-ip">IP Address *</label>
+            <input id="input-ip" type="text" maxlength="45" autocomplete="off"
+                   placeholder="e.g. 192.168.1.10"
+                   class="form-input" />
+          </div>
+          <!-- Location / Region -->
+          <div>
+            <label class="form-label" for="input-location">Location / Region</label>
+            <input id="input-location" type="text" maxlength="40" autocomplete="off"
+                   placeholder="e.g. US-East-1"
+                   class="form-input" />
+          </div>
+          <!-- Server Role -->
+          <div>
+            <label class="form-label" for="input-role">Role</label>
+            <select id="input-role" class="form-input">
+              <option value="Web">Web Server</option>
+              <option value="DB">Database</option>
+              <option value="Cache">Cache</option>
+              <option value="Worker">Worker</option>
+              <option value="Gateway">API Gateway</option>
+              <option value="Storage">Storage</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Form error -->
+        <p id="form-error" class="text-xs text-red-400 hidden" role="alert"></p>
+
+        <div class="flex justify-end gap-3 mt-1">
+          <button type="button" id="modal-cancel-btn"
+                  class="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white transition">
+            Cancel
+          </button>
+          <button type="submit"
+                  class="px-5 py-2 text-sm font-semibold text-white bg-accent hover:bg-accent-dark
+                         rounded-lg active:scale-95 transition duration-200">
+            <i id="modal-submit-icon" class="fa-solid fa-plus mr-1.5 text-xs"></i>
+            <span id="modal-submit-text">Add Server</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       CONFIRM DELETE DIALOG
+  ================================================================ -->
+  <div id="confirm-modal" class="modal-overlay hidden"
+       role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal-card max-w-sm text-center">
+      <div class="w-12 h-12 rounded-full bg-red-900/50 flex items-center justify-center
+                  mx-auto mb-4">
+        <i class="fa-solid fa-triangle-exclamation text-crit text-xl"></i>
+      </div>
+      <h2 id="confirm-title" class="text-base font-semibold text-white mb-2">Remove Server?</h2>
+      <p id="confirm-body" class="text-sm text-slate-400 mb-6">
+        This server will be permanently removed from monitoring.
+      </p>
+      <div class="flex gap-3 justify-center">
+        <button id="confirm-cancel-btn"
+                class="px-5 py-2 text-sm font-medium text-slate-400 hover:text-white
+                       border border-navy-border rounded-lg transition">
+          Cancel
+        </button>
+        <button id="confirm-delete-btn"
+                class="px-5 py-2 text-sm font-semibold text-white bg-crit hover:bg-red-700
+                       rounded-lg active:scale-95 transition duration-200">
+          Remove
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification container -->
+  <div id="toast-container"
+       class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"
+       aria-live="polite"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
